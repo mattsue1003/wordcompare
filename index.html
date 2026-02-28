@@ -3,18 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>樂齡大腦體操 - 三數連加減產生器</title>
+    <title>語文大腦體操 - 日常相反詞連連看產生器</title>
     
+    <!-- 引入 PDF 轉換套件 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <style>
         :root {
-            --primary-color: #4338ca; 
-            --primary-hover: #3730a3;
-            --dark-color: #1e293b;
+            --primary-color: #4f46e5; /* Indigo 600 */
+            --primary-hover: #4338ca; /* Indigo 700 */
+            --dark-color: #312e81;
             --bg-color: #eef2ff;
             --accent-color: #6366f1;
+            --line-color: #e11d48; /* 解答線條顏色 (Rose 600) */
         }
 
         body { 
@@ -40,18 +42,16 @@
         .controls h2 { margin: 0 0 12px 0; color: var(--dark-color); font-size: 1.5rem; display: flex; align-items: center; gap: 8px;}
 
         .designer-info {
-            background: #eef2ff; padding: 12px 16px; border-radius: 8px; font-size: 0.95rem;
+            background: #e0e7ff; padding: 12px 16px; border-radius: 8px; font-size: 0.95rem;
             color: #3730a3; margin-bottom: 20px; border-left: 4px solid var(--primary-color);
             line-height: 1.6;
         }
-        .designer-info a { color: var(--primary-color); text-decoration: none; font-weight: bold; border-bottom: 1px solid var(--primary-color); transition: all 0.2s; }
-        .designer-info a:hover { color: var(--primary-hover); border-bottom-color: var(--primary-hover); }
 
         .control-grid { display: grid; gap: 15px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
         .control-group { display: flex; flex-direction: column; }
         label { font-weight: bold; margin-bottom: 6px; color: #475569; font-size: 0.9rem; }
         input, select { padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; }
-        input:focus, select:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 2px rgba(67, 56, 202, 0.2); }
+        input:focus, select:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2); }
 
         .btn-group { grid-column: 1 / -1; display: flex; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
         button { flex: 1; min-width: 140px; padding: 14px; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; color: white; transition: all 0.2s; }
@@ -74,72 +74,91 @@
             background: white; 
             width: 210mm; 
             height: 297mm; 
-            padding: 12mm 18mm; 
+            padding: 15mm 20mm; 
             box-sizing: border-box; 
             box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
             display: flex; 
             flex-direction: column; 
-            overflow: hidden; 
             position: relative;
         }
 
-        .sheet-header { border-bottom: 2px solid var(--primary-color); padding-bottom: 8px; margin-bottom: 15px; }
-        .sheet-title { text-align: center; font-size: 24pt; font-weight: 900; color: #0f172a; margin-bottom: 8px; letter-spacing: 2px; }
+        .sheet-header { border-bottom: 3px double var(--primary-color); padding-bottom: 8px; margin-bottom: 15px; }
+        .sheet-title { text-align: center; font-size: 24pt; font-weight: 900; color: #0f172a; margin-bottom: 12px; letter-spacing: 2px; }
         .sheet-info { display: flex; justify-content: space-between; font-size: 13pt; font-weight: bold; color: #334155; }
 
         .instruction {
-            background: #f8fafc; border: 1px solid #cbd5e1; padding: 8px 10px; border-radius: 8px;
-            color: #334155; font-size: 12pt; font-weight: bold; margin-bottom: 15px; text-align: center;
+            background: #f8fafc; border: 1px solid #cbd5e1; padding: 10px 15px; border-radius: 8px;
+            color: #334155; font-size: 13pt; font-weight: bold; margin-bottom: 20px; text-align: center;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
         }
 
-        /* 題目區 (左右兩欄，平均分配剩餘高度) */
+        /* --- 連連看主要區塊 --- */
         .worksheet-body {
+            position: relative;
             display: flex;
             justify-content: space-between;
-            flex-grow: 1; /* 佔滿剩餘的所有 A4 高度 */
-            gap: 40px;
-            padding-bottom: 5px;
+            flex-grow: 1; /* 佔滿剩餘高度 */
+            padding: 10px 20px;
         }
-        .math-col {
-            flex: 1;
+
+        /* SVG 用來畫解答的線條 (修改：置於最頂層) */
+        .answer-lines {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none; /* 不阻擋滑鼠事件 */
+            z-index: 10; /* 修改為最高層級，確保線條壓過其他元素 */
+        }
+
+        .match-col {
             display: flex;
             flex-direction: column;
-            justify-content: space-between; /* 魔法屬性：讓內部元素自動等距拉開，平均分配行高 */
+            justify-content: space-between; /* 自動平均分配行距 */
+            width: 38%;
+            z-index: 2; /* 保持較低層級 */
         }
-        .math-row {
+
+        .match-item {
             display: flex;
             align-items: center;
-            font-size: 19pt; /* 稍微微調字體大小以完美容納 13 題 */
-            font-family: Arial, sans-serif;
-        }
-        .q-num {
-            width: 50px;
+            justify-content: space-between;
+            background: #ffffff;
+            border: 2px solid #94a3b8;
+            border-radius: 12px;
+            padding: 10px 20px;
+            font-size: 18pt;
             font-weight: bold;
-            color: var(--primary-color);
-            font-size: 15pt;
-        }
-        .q-text {
-            flex-grow: 1;
             letter-spacing: 2px;
-            font-weight: bold;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            height: 50px; /* 固定高度讓排版更整齊 */
         }
-        .q-ans {
-            min-width: 65px;
-            text-align: center;
-            border-bottom: 2.5px solid #1e293b;
-            color: #dc2626;
-            font-weight: bold;
+
+        /* 左欄：字在左，點在右 */
+        .match-col.left .match-item { flex-direction: row; }
+        /* 右欄：點在左，字在右 */
+        .match-col.right .match-item { flex-direction: row-reverse; }
+
+        .dot-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+        }
+
+        .dot {
+            width: 14px;
+            height: 14px;
+            background: #6366f1;
+            border-radius: 50%;
             display: inline-block;
-            line-height: 1.2;
-            padding: 0 5px;
-        }
-        .q-ans.hide-ans {
-            color: transparent;
+            box-shadow: 0 0 0 3px #e0e7ff;
+            position: relative;
         }
 
         .sheet-footer { 
             display: flex; justify-content: space-between; font-size: 10pt; color: #64748b; 
-            margin-top: 10px; padding-top: 10px; border-top: 1px solid #e2e8f0;
+            margin-top: 20px; padding-top: 10px; border-top: 1px solid #e2e8f0;
         }
 
         #hidden-capture { position: fixed; left: -5000px; width: 210mm; }
@@ -157,11 +176,13 @@
 <div class="top-banner no-print"></div>
 
 <div class="controls no-print">
-    <h2>🧠 樂齡大腦體操 - 三數連加減產生器</h2>
+    <h2>📚 語文大腦體操 - 日常相反詞連連看</h2>
+    <div style="font-weight: bold; margin-bottom: 12px; font-size: 1.1rem;">
+        <a href="https://www.facebook.com/profile.php?id=100063748491881" target="_blank" style="color: var(--primary-color); text-decoration: none;">設計者：鍾孟修 職能治療師</a>
+    </div>
     <div class="designer-info">
-        設計者：<a href="https://www.facebook.com/profile.php?id=100063748491881" target="_blank">鍾孟修 職能治療師</a><br>
-        <b>功能說明：</b>可自由設定題型為純加法、純減法或混合運算。支援調整難易度（個位數與雙位數的配置），能確保運算過程中不出現負數。<br>
-        <b>版面設定：</b>每頁產生 25 題（滿分 100 分，一題 4 分），自動平均分配行高，完美符合 A4 列印尺寸。
+        <b>題庫升級：</b>內建 <b>100 組</b>日常生活中最常見的相反詞（包含長短大小、情緒、動作、抽象概念等）。<br>
+        <b>防重複機制：</b>若一次產生多頁測驗卷，系統會優先將 100 題輪流出完，確保在同一批考卷中「完全不會有重複的題目」！
     </div>
 
     <div id="msgBox"></div>
@@ -169,33 +190,25 @@
     <div class="control-grid">
         <div class="control-group">
             <label>📝 測驗卷標題</label>
-            <input type="text" id="titleInput" value="大腦體操：三數連加減挑戰">
+            <input type="text" id="titleInput" value="語文大挑戰：相反詞連連看">
         </div>
         <div class="control-group">
-            <label>🧮 運算符號</label>
-            <select id="opType">
-                <option value="mix" selected>綜合 (加法與減法混合)</option>
-                <option value="add">純加法 (A + B + C)</option>
-                <option value="sub">純減法 (A - B - C)</option>
+            <label>🔢 每頁題數 (建議 8-12)</label>
+            <select id="itemCount">
+                <option value="8">8 題 (間距寬鬆，適合幼兒)</option>
+                <option value="10" selected>10 題 (適中排版，推薦)</option>
+                <option value="12">12 題 (較具挑戰性)</option>
             </select>
         </div>
         <div class="control-group">
-            <label>⚙️ 數字難易度配置</label>
-            <select id="diffLevel">
-                <option value="1">等級一：連續三個個位數</option>
-                <option value="2" selected>等級二：一個雙位數，兩個個位數</option>
-                <option value="3">等級三：兩個雙位數，一個個位數</option>
-                <option value="4">等級四：全是雙位數 (三個雙位數)</option>
-            </select>
-        </div>
-        <div class="control-group">
-            <label>📄 產生總頁數</label>
-            <input type="number" id="pageCount" value="1" min="1" max="20">
+            <label>📄 產生總頁數 (不同題目)</label>
+            <input type="number" id="pageCount" value="3" min="1" max="15">
         </div>
         <div class="control-group">
             <label>👁️ 答案顯示</label>
             <select id="showAns">
-                <option value="yes" selected>附帶產生解答頁</option>
+                <option value="yes_after" selected>附帶產生解答頁 (接在每頁題目後)</option>
+                <option value="yes_end">附帶產生解答頁 (統一在所有題目後)</option>
                 <option value="no">僅產生測驗題目</option>
             </select>
         </div>
@@ -212,132 +225,177 @@
 <div id="hidden-capture"></div>
 
 <script>
-    const QUESTIONS_PER_PAGE = 25; // 改為25題
+    // 內建 100 組日常相反詞彙庫
+    const antonymDictionary = [
+        // 尺寸/空間/方向 (25組)
+        { id: 1, left: "大", right: "小" }, { id: 2, left: "高", right: "低" },
+        { id: 3, left: "長", right: "短" }, { id: 4, left: "粗", right: "細" },
+        { id: 5, left: "寬", right: "窄" }, { id: 6, left: "厚", right: "薄" },
+        { id: 7, left: "深", right: "淺" }, { id: 8, left: "胖", right: "瘦" },
+        { id: 9, left: "輕", right: "重" }, { id: 10, left: "上", right: "下" },
+        { id: 11, left: "左", right: "右" }, { id: 12, left: "前", right: "後" },
+        { id: 13, left: "裡", right: "外" }, { id: 14, left: "遠", right: "近" },
+        { id: 15, left: "東", right: "西" }, { id: 16, left: "南", right: "北" },
+        { id: 17, left: "進", right: "出" }, { id: 18, left: "來", right: "去" },
+        { id: 19, left: "巨大", right: "微小" }, { id: 20, left: "遙遠", right: "附近" },
+        { id: 21, left: "滿", right: "空" }, { id: 22, left: "聚", right: "散" },
+        { id: 23, left: "集中", right: "分散" }, { id: 24, left: "內", right: "外" },
+        { id: 25, left: "頂端", right: "底部" },
 
-    // 顯示提示訊息的共用函數
+        // 時間/速度/狀態 (25組)
+        { id: 26, left: "早", right: "晚" }, { id: 27, left: "日", right: "夜" },
+        { id: 28, left: "新", right: "舊" }, { id: 29, left: "快", right: "慢" },
+        { id: 30, left: "先", right: "後" }, { id: 31, left: "冷", right: "熱" },
+        { id: 32, left: "涼", right: "暖" }, { id: 33, left: "乾", right: "濕" },
+        { id: 34, left: "軟", right: "硬" }, { id: 35, left: "鬆", right: "緊" },
+        { id: 36, left: "明", right: "暗" }, { id: 37, left: "美", right: "醜" },
+        { id: 38, left: "香", right: "臭" }, { id: 39, left: "吵", right: "靜" },
+        { id: 40, left: "濃", right: "淡" }, { id: 41, left: "清", right: "濁" },
+        { id: 42, left: "真", right: "假" }, { id: 43, left: "善", right: "惡" },
+        { id: 44, left: "好", right: "壞" }, { id: 45, left: "對", right: "錯" },
+        { id: 46, left: "是", right: "非" }, { id: 47, left: "強", right: "弱" },
+        { id: 48, left: "剛", right: "柔" }, { id: 49, left: "寒冷", right: "炎熱" },
+        { id: 50, left: "黑暗", right: "光明" },
+
+        // 情緒/個性/人物 (25組)
+        { id: 51, left: "哭", right: "笑" }, { id: 52, left: "喜", right: "悲" },
+        { id: 53, left: "愛", right: "恨" }, { id: 54, left: "喜歡", right: "討厭" },
+        { id: 55, left: "勇敢", right: "懦弱" }, { id: 56, left: "驕傲", right: "謙虛" },
+        { id: 57, left: "勤勞", right: "懶惰" }, { id: 58, left: "聰明", right: "愚笨" },
+        { id: 59, left: "快樂", right: "悲傷" }, { id: 60, left: "緊張", right: "放鬆" },
+        { id: 61, left: "忙碌", right: "悠閒" }, { id: 62, left: "安全", right: "危險" },
+        { id: 63, left: "成功", right: "失敗" }, { id: 64, left: "乾淨", right: "骯髒" },
+        { id: 65, left: "整齊", right: "凌亂" }, { id: 66, left: "溫柔", right: "粗暴" },
+        { id: 67, left: "誠實", right: "說謊" }, { id: 68, left: "活潑", right: "內向" },
+        { id: 69, left: "仔細", right: "馬虎" }, { id: 70, left: "清醒", right: "沉睡" },
+        { id: 71, left: "熟悉", right: "陌生" }, { id: 72, left: "相信", right: "懷疑" },
+        { id: 73, left: "飽", right: "餓" }, { id: 74, left: "獎勵", right: "懲罰" },
+        { id: 75, left: "讚美", right: "批評" },
+
+        // 動作/抽象/數量 (25組)
+        { id: 76, left: "買", right: "賣" }, { id: 77, left: "開", right: "關" },
+        { id: 78, left: "推", right: "拉" }, { id: 79, left: "升", right: "降" },
+        { id: 80, left: "沉", right: "浮" }, { id: 81, left: "增", right: "減" },
+        { id: 82, left: "加", right: "減" }, { id: 83, left: "問", right: "答" },
+        { id: 84, left: "借", right: "還" }, { id: 85, left: "穿", right: "脫" },
+        { id: 86, left: "走", right: "停" }, { id: 87, left: "動", right: "靜" },
+        { id: 88, left: "有", right: "無" }, { id: 89, left: "生", right: "死" },
+        { id: 90, left: "同", right: "異" }, { id: 91, left: "公", right: "私" },
+        { id: 92, left: "貧", right: "富" }, { id: 93, left: "難", right: "易" },
+        { id: 94, left: "繁", right: "簡" }, { id: 95, left: "多", right: "少" },
+        { id: 96, left: "容易", right: "困難" }, { id: 97, left: "複雜", right: "簡單" },
+        { id: 98, left: "結束", right: "開始" }, { id: 99, left: "接受", right: "拒絕" },
+        { id: 100, left: "發現", right: "隱藏" }
+    ];
+
+    // 顯示提示訊息
     function showMessage(text, type = 'error') {
         const msgBox = document.getElementById('msgBox');
         msgBox.innerText = text;
         msgBox.style.display = 'block';
-        msgBox.style.backgroundColor = type === 'error' ? '#fee2e2' : '#dcfce7';
-        msgBox.style.color = type === 'error' ? '#b91c1c' : '#15803d';
+        msgBox.style.backgroundColor = type === 'error' ? '#fee2e2' : '#e0e7ff';
+        msgBox.style.color = type === 'error' ? '#b91c1c' : '#3730a3';
         setTimeout(() => msgBox.style.display = 'none', 3000);
     }
 
-    // 依照位數產生亂數 (1: 1-9, 2: 10-99)
-    function getRandomByLength(len) {
-        if (len === 1) return Math.floor(Math.random() * 9) + 1;
-        if (len === 2) return Math.floor(Math.random() * 90) + 10;
-        return 0;
-    }
-
-    // 產生一道符合條件的題目
-    function generateMathProblem(opType, diffLevel) {
-        let numConfig = [];
-        // 設定每項數字的位數
-        if (diffLevel === '1') numConfig = [1, 1, 1];
-        else if (diffLevel === '2') numConfig = [2, 1, 1];
-        else if (diffLevel === '3') numConfig = [2, 2, 1];
-        else numConfig = [2, 2, 2];
-
-        let attempts = 0;
-        
-        while(true) {
-            attempts++;
-            let currentConfig = [...numConfig];
-            
-            // 將位數配置隨機打亂，讓雙位數可以出現在任意位置
-            // 若超過 50 次仍找不到合適的組合(通常發生在全減法且小減大時)，則強制將最大位數放前面
-            if (attempts < 50) {
-                currentConfig.sort(() => Math.random() - 0.5);
-            } else {
-                currentConfig.sort((x, y) => y - x); 
-            }
-
-            let a = getRandomByLength(currentConfig[0]);
-            let b = getRandomByLength(currentConfig[1]);
-            let c = getRandomByLength(currentConfig[2]);
-
-            let op1, op2;
-            if (opType === 'add') { 
-                op1 = '+'; op2 = '+'; 
-            } else if (opType === 'sub') { 
-                op1 = '-'; op2 = '-'; 
-            } else { // 綜合
-                op1 = Math.random() > 0.5 ? '+' : '-';
-                op2 = Math.random() > 0.5 ? '+' : '-';
-            }
-
-            // 確保運算過程中不出現負數
-            let temp1 = op1 === '+' ? a + b : a - b;
-            if (temp1 < 0) continue;
-            
-            let ans = op2 === '+' ? temp1 + c : temp1 - c;
-            if (ans >= 0) {
-                return {
-                    text: `${a} ${op1} ${b} ${op2} ${c} = `,
-                    answer: ans
-                };
-            }
+    // 陣列洗牌函數 (Fisher-Yates Shuffle)
+    function shuffleArray(array) {
+        let newArr = [...array];
+        for (let i = newArr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
         }
+        return newArr;
     }
 
     // 主要的產生頁面流程
     function generateSheets() {
-        const title = document.getElementById('titleInput').value || "大腦體操：三數連加減挑戰";
-        const opType = document.getElementById('opType').value;
-        const diffLevel = document.getElementById('diffLevel').value;
+        const title = document.getElementById('titleInput').value || "語文大挑戰：相反詞連連看";
+        const itemCount = parseInt(document.getElementById('itemCount').value);
         const pages = Math.max(1, parseInt(document.getElementById('pageCount').value) || 1);
         const showAns = document.getElementById('showAns').value;
         const output = document.getElementById('output');
         
-        output.innerHTML = '<div style="padding: 20px; font-weight: bold; color: var(--primary-color); font-size: 18px;">正在為您準備題目，請稍候...</div>';
+        output.innerHTML = '<div style="padding: 20px; font-weight: bold; color: var(--primary-color); font-size: 18px;">正在為您排版題目，請稍候...</div>';
 
-        // 使用 setTimeout 避免阻擋畫面渲染
         setTimeout(() => {
             output.innerHTML = '';
-            let allData = [];
+            let allPagesData = [];
+            
+            // 為了「不重複出題」，先將 100 題洗牌
+            let currentDictionary = shuffleArray(antonymDictionary);
+            let dictIndex = 0;
 
-            // 產生所有題目資料
             for (let p = 1; p <= pages; p++) {
-                let questions = [];
-                for(let i = 0; i < QUESTIONS_PER_PAGE; i++) {
-                    questions.push(generateMathProblem(opType, diffLevel));
+                // 1. 依序從洗牌後的題庫中取出需要的數量
+                let selectedPairs = [];
+                for(let i = 0; i < itemCount; i++) {
+                    // 如果 100 題都出完了，就重新洗牌再繼續
+                    if(dictIndex >= currentDictionary.length) {
+                        currentDictionary = shuffleArray(antonymDictionary);
+                        dictIndex = 0;
+                    }
+                    selectedPairs.push(currentDictionary[dictIndex]);
+                    dictIndex++;
                 }
-                allData.push({ questions, pageNum: p });
                 
-                // 產生測驗卷畫面
-                output.appendChild(renderPage(title, questions, p, false));
+                // 2. 將左右詞彙分開
+                let leftColData = selectedPairs.map(p => ({ id: p.id, text: p.left }));
+                let rightColData = selectedPairs.map(p => ({ id: p.id, text: p.right }));
+                
+                // 3. 獨立打亂左右兩邊的順序
+                leftColData = shuffleArray(leftColData);
+                rightColData = shuffleArray(rightColData);
+
+                // 防止正好平行相對（若有同行同ID，則再洗牌一次右邊）
+                let retry = 0;
+                while(retry < 5 && leftColData.some((l, idx) => l.id === rightColData[idx].id)) {
+                    rightColData = shuffleArray(rightColData);
+                    retry++;
+                }
+
+                allPagesData.push({ leftColData, rightColData, pageNum: p });
+                
+                // 產生測驗卷
+                if (showAns === 'yes_after') {
+                    output.appendChild(renderPage(title, leftColData, rightColData, p, false));
+                    output.appendChild(renderPage(title + " (解答)", leftColData, rightColData, p, true));
+                } else {
+                    output.appendChild(renderPage(title, leftColData, rightColData, p, false));
+                }
             }
 
-            // 若需要，產生解答卷畫面
-            if (showAns === 'yes') {
-                allData.forEach(data => {
-                    output.appendChild(renderPage(title + " (解答)", data.questions, data.pageNum, true));
+            // 若需要統一在最後面產生解答卷
+            if (showAns === 'yes_end') {
+                allPagesData.forEach(data => {
+                    output.appendChild(renderPage(title + " (解答)", data.leftColData, data.rightColData, data.pageNum, true));
                 });
             }
             
             updateScale();
-            showMessage("✨ 測驗卷產生成功！", "success");
+            
+            // 由於需要抓取 DOM 元素座標來畫線，必須在 HTML 渲染到畫面後再執行畫線函數
+            setTimeout(() => {
+                drawAllAnswerLines();
+                showMessage(`✨ 成功產生 ${pages} 頁測驗卷！題目已自動防重複。`, "success");
+            }, 100);
+
         }, 50);
     }
 
     // 渲染單頁 DOM
-    function renderPage(title, questions, pageNum, isAns) {
+    function renderPage(title, leftCol, rightCol, pageNum, isAns) {
         const scaler = document.createElement('div');
         scaler.className = 'sheet-scaler';
         const sheet = document.createElement('div');
         sheet.className = 'sheet';
 
-        // 將 25 題拆分成兩欄 (左邊 13 題，右邊 12 題)
-        const col1 = questions.slice(0, 13);
-        const col2 = questions.slice(13, 25);
-
-        const renderRow = (q, i) => `
-            <div class="math-row">
-                <span class="q-num">(${i})</span>
-                <span class="q-text">${q.text}</span>
-                <span class="q-ans ${isAns ? '' : 'hide-ans'}">${q.answer}</span>
+        const renderItem = (item, side) => `
+            <div class="match-item" data-id="${item.id}">
+                <span>${item.text}</span>
+                <div class="dot-container">
+                    <div class="dot" id="dot-${side}-${pageNum}-${isAns ? 'ans' : 'q'}-${item.id}"></div>
+                </div>
             </div>
         `;
 
@@ -350,24 +408,84 @@
                     <span>得分：____ / 100</span>
                 </div>
             </div>
-            <div class="instruction">💡 任務：請仔細計算下列數學題目，將正確答案填入底線上。每題 4 分。</div>
+            <div class="instruction">✏️ 任務：請將左邊與右邊意思「相反」的詞語，用線連起來。</div>
             
-            <div class="worksheet-body">
-                <div class="math-col">
-                    ${col1.map((q, index) => renderRow(q, index + 1)).join('')}
+            <div class="worksheet-body" id="body-${pageNum}-${isAns ? 'ans' : 'q'}">
+                <svg class="answer-lines" id="svg-${pageNum}-${isAns ? 'ans' : 'q'}"></svg>
+                <div class="match-col left">
+                    ${leftCol.map(item => renderItem(item, 'left')).join('')}
                 </div>
-                <div class="math-col">
-                    ${col2.map((q, index) => renderRow(q, index + 14)).join('')}
+                <div class="match-col right">
+                    ${rightCol.map(item => renderItem(item, 'right')).join('')}
                 </div>
             </div>
 
             <div class="sheet-footer">
                 <span>${isAns ? '解答卷' : '測驗卷'} - 第 ${pageNum} 頁</span>
-                <span>設計者：鍾孟修 職能治療師</span>
+                <span><a href="https://www.facebook.com/profile.php?id=100063748491881" target="_blank" style="color: #64748b; text-decoration: none;">設計者：鍾孟修 職能治療師</a></span>
             </div>
         `;
         scaler.appendChild(sheet);
         return scaler;
+    }
+
+    // 計算元素相對於某個父容器的 X, Y 中心座標
+    function getRelativeCenterPos(elem, parent) {
+        let x = 0, y = 0;
+        let w = elem.offsetWidth;
+        let h = elem.offsetHeight;
+        let currentElem = elem;
+
+        while (currentElem && currentElem !== parent) {
+            x += currentElem.offsetLeft;
+            y += currentElem.offsetTop;
+            currentElem = currentElem.offsetParent;
+        }
+        return { x: x + w / 2, y: y + h / 2 };
+    }
+
+    // 畫出解答的連線
+    function drawAllAnswerLines() {
+        const ansBodies = document.querySelectorAll('.worksheet-body[id*="-ans"]');
+        
+        // 定義一組易於辨識的多種顏色
+        const lineColors = [
+            '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981', 
+            '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6', '#d946ef', 
+            '#f43f5e', '#14b8a6'
+        ];
+        
+        ansBodies.forEach(body => {
+            const svg = body.querySelector('svg.answer-lines');
+            svg.innerHTML = ''; 
+            
+            const leftItems = body.querySelectorAll('.match-col.left .match-item');
+            
+            leftItems.forEach((leftItem, index) => {
+                const id = leftItem.getAttribute('data-id');
+                const rightItem = body.querySelector(`.match-col.right .match-item[data-id="${id}"]`);
+                
+                if(rightItem) {
+                    const leftDot = leftItem.querySelector('.dot');
+                    const rightDot = rightItem.querySelector('.dot');
+                    
+                    const pos1 = getRelativeCenterPos(leftDot, body);
+                    const pos2 = getRelativeCenterPos(rightDot, body);
+                    
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', pos1.x);
+                    line.setAttribute('y1', pos1.y);
+                    line.setAttribute('x2', pos2.x);
+                    line.setAttribute('y2', pos2.y);
+                    line.setAttribute('stroke', lineColors[index % lineColors.length]);
+                    line.setAttribute('stroke-width', '4');
+                    line.setAttribute('stroke-linecap', 'round');
+                    line.setAttribute('opacity', '0.9'); // 設定 0.9 讓線條清晰且不會完全死硬遮蔽
+                    
+                    svg.appendChild(line);
+                }
+            });
+        });
     }
 
     // 處理視窗縮放，確保 A4 頁面可以在螢幕上完整預覽
@@ -379,10 +497,9 @@
         const scalers = document.querySelectorAll('.sheet-scaler');
         if (scalers.length === 0) return;
         
-        // A4 寬度約為 210mm，轉換為 pixel 基準 (1mm ≒ 3.7795px)
-        const sheetWidth = 210 * 3.7795;
+        const sheetWidth = 210 * 3.7795; // A4 mm 轉 px
         let scale = containerWidth / sheetWidth;
-        if (scale > 1) scale = 1; // 最大比例不超過 1
+        if (scale > 1) scale = 1; 
         
         scalers.forEach(s => {
             s.style.transform = `scale(${scale})`;
@@ -410,11 +527,43 @@
             for (let i = 0; i < sheets.length; i++) {
                 btn.innerText = `⏳ 正在轉換第 ${i+1}/${sheets.length} 頁...`;
                 
-                // 複製節點至隱藏區域以避免受到 CSS scale 縮放影響導致解析度不佳
                 const clone = sheets[i].cloneNode(true);
                 clone.style.transform = "none";
                 hidden.appendChild(clone);
                 
+                const cloneBody = clone.querySelector('.worksheet-body[id*="-ans"]');
+                if(cloneBody) {
+                    const cloneSvg = cloneBody.querySelector('svg.answer-lines');
+                    cloneSvg.innerHTML = '';
+                    const leftItems = cloneBody.querySelectorAll('.match-col.left .match-item');
+                    
+                    // PDF 產生時也同樣套用彩色線條
+                    const lineColors = [
+                        '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981', 
+                        '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6', '#d946ef', 
+                        '#f43f5e', '#14b8a6'
+                    ];
+
+                    leftItems.forEach((leftItem, index) => {
+                        const id = leftItem.getAttribute('data-id');
+                        const rightItem = cloneBody.querySelector(`.match-col.right .match-item[data-id="${id}"]`);
+                        if(rightItem) {
+                            const lDot = leftItem.querySelector('.dot');
+                            const rDot = rightItem.querySelector('.dot');
+                            const p1 = getRelativeCenterPos(lDot, cloneBody);
+                            const p2 = getRelativeCenterPos(rDot, cloneBody);
+                            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                            line.setAttribute('x1', p1.x); line.setAttribute('y1', p1.y);
+                            line.setAttribute('x2', p2.x); line.setAttribute('y2', p2.y);
+                            line.setAttribute('stroke', lineColors[index % lineColors.length]);
+                            line.setAttribute('stroke-width', '4');
+                            line.setAttribute('stroke-linecap', 'round');
+                            line.setAttribute('opacity', '0.9'); // PDF 轉換時也同樣設定高清晰度
+                            cloneSvg.appendChild(line);
+                        }
+                    });
+                }
+
                 const canvas = await html2canvas(clone, { scale: 1.5 }); 
                 hidden.removeChild(clone);
                 
@@ -422,21 +571,18 @@
                 if (i > 0) pdf.addPage();
                 pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
             }
-            pdf.save('大腦體操_三數連加減測驗卷_25題.pdf');
+            pdf.save('語文大腦體操_相反詞連連看.pdf');
             showMessage("✅ PDF 下載完成！", "success");
         } catch (e) {
             console.error(e);
-            showMessage("轉換 PDF 時發生錯誤。如果頁數過多，建議分次產生，或直接使用「直接列印」功能轉存 PDF。", "error");
+            showMessage("轉換 PDF 時發生錯誤。如果頁數過多，建議分次產生，或直接使用「直接列印」。", "error");
         } finally {
             btn.disabled = false;
             btn.innerText = "📱 下載 PDF";
         }
     }
 
-    // 監聽視窗大小改變，即時調整 A4 預覽大小
     window.addEventListener('resize', updateScale);
-    
-    // 初始化產生一次預設的題目
     window.onload = generateSheets;
 </script>
 
