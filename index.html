@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>樂齡大腦體操 - 三數連加減產生器</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #4338ca; 
+            --primary-hover: #3730a3;
+            --dark-color: #1e293b;
+            --bg-color: #eef2ff;
+            --accent-color: #6366f1;
+        }
+
+        body { 
+            font-family: "PingFang TC", "Microsoft JhengHei", Arial, sans-serif; 
+            background: var(--bg-color); 
+            margin: 0; 
+            padding: 0;
+            color: #334155;
+        }
+        
+        .top-banner { background: var(--primary-color); height: 5px; width: 100%; }
+
+        /* --- 控制面板 --- */
+        .controls {
+            background: white; 
+            padding: 20px; 
+            border-radius: 0 0 16px 16px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            max-width: 950px; 
+            margin: 0 auto 20px auto; 
+        }
+        
+        .controls h2 { margin: 0 0 12px 0; color: var(--dark-color); font-size: 1.5rem; display: flex; align-items: center; gap: 8px;}
+
+        .designer-info {
+            background: #eef2ff; padding: 12px 16px; border-radius: 8px; font-size: 0.95rem;
+            color: #3730a3; margin-bottom: 20px; border-left: 4px solid var(--primary-color);
+            line-height: 1.6;
+        }
+        .designer-info a { color: var(--primary-color); text-decoration: none; font-weight: bold; border-bottom: 1px solid var(--primary-color); transition: all 0.2s; }
+        .designer-info a:hover { color: var(--primary-hover); border-bottom-color: var(--primary-hover); }
+
+        .control-grid { display: grid; gap: 15px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+        .control-group { display: flex; flex-direction: column; }
+        label { font-weight: bold; margin-bottom: 6px; color: #475569; font-size: 0.9rem; }
+        input, select { padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; }
+        input:focus, select:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 2px rgba(67, 56, 202, 0.2); }
+
+        .btn-group { grid-column: 1 / -1; display: flex; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+        button { flex: 1; min-width: 140px; padding: 14px; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; color: white; transition: all 0.2s; }
+        button:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        .gen-btn { background: var(--primary-color); }
+        .print-btn { background: #475569; }
+        .pdf-btn { background: #ea580c; }
+
+        /* 訊息提示框 */
+        #msgBox {
+            display: none; padding: 12px; border-radius: 8px; margin-bottom: 15px;
+            text-align: center; font-weight: bold; font-size: 15px;
+        }
+
+        /* --- 響應式 A4 預覽區 --- */
+        .preview-area { width: 100%; overflow-x: hidden; display: flex; flex-direction: column; align-items: center; padding-bottom: 40px; }
+        .sheet-scaler { transform-origin: top center; margin-bottom: 20px; }
+
+        .sheet {
+            background: white; 
+            width: 210mm; 
+            height: 297mm; 
+            padding: 12mm 18mm; 
+            box-sizing: border-box; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+            position: relative;
+        }
+
+        .sheet-header { border-bottom: 2px solid var(--primary-color); padding-bottom: 8px; margin-bottom: 15px; }
+        .sheet-title { text-align: center; font-size: 24pt; font-weight: 900; color: #0f172a; margin-bottom: 8px; letter-spacing: 2px; }
+        .sheet-info { display: flex; justify-content: space-between; font-size: 13pt; font-weight: bold; color: #334155; }
+
+        .instruction {
+            background: #f8fafc; border: 1px solid #cbd5e1; padding: 8px 10px; border-radius: 8px;
+            color: #334155; font-size: 12pt; font-weight: bold; margin-bottom: 15px; text-align: center;
+        }
+
+        /* 題目區 (左右兩欄，平均分配剩餘高度) */
+        .worksheet-body {
+            display: flex;
+            justify-content: space-between;
+            flex-grow: 1; /* 佔滿剩餘的所有 A4 高度 */
+            gap: 40px;
+            padding-bottom: 5px;
+        }
+        .math-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between; /* 魔法屬性：讓內部元素自動等距拉開，平均分配行高 */
+        }
+        .math-row {
+            display: flex;
+            align-items: center;
+            font-size: 19pt; /* 稍微微調字體大小以完美容納 13 題 */
+            font-family: Arial, sans-serif;
+        }
+        .q-num {
+            width: 50px;
+            font-weight: bold;
+            color: var(--primary-color);
+            font-size: 15pt;
+        }
+        .q-text {
+            flex-grow: 1;
+            letter-spacing: 2px;
+            font-weight: bold;
+        }
+        .q-ans {
+            min-width: 65px;
+            text-align: center;
+            border-bottom: 2.5px solid #1e293b;
+            color: #dc2626;
+            font-weight: bold;
+            display: inline-block;
+            line-height: 1.2;
+            padding: 0 5px;
+        }
+        .q-ans.hide-ans {
+            color: transparent;
+        }
+
+        .sheet-footer { 
+            display: flex; justify-content: space-between; font-size: 10pt; color: #64748b; 
+            margin-top: 10px; padding-top: 10px; border-top: 1px solid #e2e8f0;
+        }
+
+        #hidden-capture { position: fixed; left: -5000px; width: 210mm; }
+
+        @media print {
+            .no-print { display: none; }
+            body { background: white; margin: 0; padding: 0;}
+            .sheet-scaler { transform: none !important; height: auto !important; margin: 0; }
+            .sheet { box-shadow: none; page-break-after: always; padding: 10mm 15mm; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="top-banner no-print"></div>
+
+<div class="controls no-print">
+    <h2>🧠 樂齡大腦體操 - 三數連加減產生器</h2>
+    <div class="designer-info">
+        設計者：<a href="https://www.facebook.com/profile.php?id=100063748491881" target="_blank">鍾孟修 職能治療師</a><br>
+        <b>功能說明：</b>可自由設定題型為純加法、純減法或混合運算。支援調整難易度（個位數與雙位數的配置），能確保運算過程中不出現負數。<br>
+        <b>版面設定：</b>每頁產生 25 題（滿分 100 分，一題 4 分），自動平均分配行高，完美符合 A4 列印尺寸。
+    </div>
+
+    <div id="msgBox"></div>
+
+    <div class="control-grid">
+        <div class="control-group">
+            <label>📝 測驗卷標題</label>
+            <input type="text" id="titleInput" value="大腦體操：三數連加減挑戰">
+        </div>
+        <div class="control-group">
+            <label>🧮 運算符號</label>
+            <select id="opType">
+                <option value="mix" selected>綜合 (加法與減法混合)</option>
+                <option value="add">純加法 (A + B + C)</option>
+                <option value="sub">純減法 (A - B - C)</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label>⚙️ 數字難易度配置</label>
+            <select id="diffLevel">
+                <option value="1">等級一：連續三個個位數</option>
+                <option value="2" selected>等級二：一個雙位數，兩個個位數</option>
+                <option value="3">等級三：兩個雙位數，一個個位數</option>
+                <option value="4">等級四：全是雙位數 (三個雙位數)</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label>📄 產生總頁數</label>
+            <input type="number" id="pageCount" value="1" min="1" max="20">
+        </div>
+        <div class="control-group">
+            <label>👁️ 答案顯示</label>
+            <select id="showAns">
+                <option value="yes" selected>附帶產生解答頁</option>
+                <option value="no">僅產生測驗題目</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="btn-group">
+        <button class="gen-btn" onclick="generateSheets()">✨ 產生測驗卷</button>
+        <button class="print-btn" onclick="window.print()">🖨️ 直接列印</button>
+        <button class="pdf-btn" id="pdfBtn" onclick="downloadPDF()">📱 下載 PDF</button>
+    </div>
+</div>
+
+<div class="preview-area" id="output"></div>
+<div id="hidden-capture"></div>
+
+<script>
+    const QUESTIONS_PER_PAGE = 25; // 改為25題
+
+    // 顯示提示訊息的共用函數
+    function showMessage(text, type = 'error') {
+        const msgBox = document.getElementById('msgBox');
+        msgBox.innerText = text;
+        msgBox.style.display = 'block';
+        msgBox.style.backgroundColor = type === 'error' ? '#fee2e2' : '#dcfce7';
+        msgBox.style.color = type === 'error' ? '#b91c1c' : '#15803d';
+        setTimeout(() => msgBox.style.display = 'none', 3000);
+    }
+
+    // 依照位數產生亂數 (1: 1-9, 2: 10-99)
+    function getRandomByLength(len) {
+        if (len === 1) return Math.floor(Math.random() * 9) + 1;
+        if (len === 2) return Math.floor(Math.random() * 90) + 10;
+        return 0;
+    }
+
+    // 產生一道符合條件的題目
+    function generateMathProblem(opType, diffLevel) {
+        let numConfig = [];
+        // 設定每項數字的位數
+        if (diffLevel === '1') numConfig = [1, 1, 1];
+        else if (diffLevel === '2') numConfig = [2, 1, 1];
+        else if (diffLevel === '3') numConfig = [2, 2, 1];
+        else numConfig = [2, 2, 2];
+
+        let attempts = 0;
+        
+        while(true) {
+            attempts++;
+            let currentConfig = [...numConfig];
+            
+            // 將位數配置隨機打亂，讓雙位數可以出現在任意位置
+            // 若超過 50 次仍找不到合適的組合(通常發生在全減法且小減大時)，則強制將最大位數放前面
+            if (attempts < 50) {
+                currentConfig.sort(() => Math.random() - 0.5);
+            } else {
+                currentConfig.sort((x, y) => y - x); 
+            }
+
+            let a = getRandomByLength(currentConfig[0]);
+            let b = getRandomByLength(currentConfig[1]);
+            let c = getRandomByLength(currentConfig[2]);
+
+            let op1, op2;
+            if (opType === 'add') { 
+                op1 = '+'; op2 = '+'; 
+            } else if (opType === 'sub') { 
+                op1 = '-'; op2 = '-'; 
+            } else { // 綜合
+                op1 = Math.random() > 0.5 ? '+' : '-';
+                op2 = Math.random() > 0.5 ? '+' : '-';
+            }
+
+            // 確保運算過程中不出現負數
+            let temp1 = op1 === '+' ? a + b : a - b;
+            if (temp1 < 0) continue;
+            
+            let ans = op2 === '+' ? temp1 + c : temp1 - c;
+            if (ans >= 0) {
+                return {
+                    text: `${a} ${op1} ${b} ${op2} ${c} = `,
+                    answer: ans
+                };
+            }
+        }
+    }
+
+    // 主要的產生頁面流程
+    function generateSheets() {
+        const title = document.getElementById('titleInput').value || "大腦體操：三數連加減挑戰";
+        const opType = document.getElementById('opType').value;
+        const diffLevel = document.getElementById('diffLevel').value;
+        const pages = Math.max(1, parseInt(document.getElementById('pageCount').value) || 1);
+        const showAns = document.getElementById('showAns').value;
+        const output = document.getElementById('output');
+        
+        output.innerHTML = '<div style="padding: 20px; font-weight: bold; color: var(--primary-color); font-size: 18px;">正在為您準備題目，請稍候...</div>';
+
+        // 使用 setTimeout 避免阻擋畫面渲染
+        setTimeout(() => {
+            output.innerHTML = '';
+            let allData = [];
+
+            // 產生所有題目資料
+            for (let p = 1; p <= pages; p++) {
+                let questions = [];
+                for(let i = 0; i < QUESTIONS_PER_PAGE; i++) {
+                    questions.push(generateMathProblem(opType, diffLevel));
+                }
+                allData.push({ questions, pageNum: p });
+                
+                // 產生測驗卷畫面
+                output.appendChild(renderPage(title, questions, p, false));
+            }
+
+            // 若需要，產生解答卷畫面
+            if (showAns === 'yes') {
+                allData.forEach(data => {
+                    output.appendChild(renderPage(title + " (解答)", data.questions, data.pageNum, true));
+                });
+            }
+            
+            updateScale();
+            showMessage("✨ 測驗卷產生成功！", "success");
+        }, 50);
+    }
+
+    // 渲染單頁 DOM
+    function renderPage(title, questions, pageNum, isAns) {
+        const scaler = document.createElement('div');
+        scaler.className = 'sheet-scaler';
+        const sheet = document.createElement('div');
+        sheet.className = 'sheet';
+
+        // 將 25 題拆分成兩欄 (左邊 13 題，右邊 12 題)
+        const col1 = questions.slice(0, 13);
+        const col2 = questions.slice(13, 25);
+
+        const renderRow = (q, i) => `
+            <div class="math-row">
+                <span class="q-num">(${i})</span>
+                <span class="q-text">${q.text}</span>
+                <span class="q-ans ${isAns ? '' : 'hide-ans'}">${q.answer}</span>
+            </div>
+        `;
+
+        sheet.innerHTML = `
+            <div class="sheet-header">
+                <div class="sheet-title">${title}</div>
+                <div class="sheet-info">
+                    <span>姓名：__________</span>
+                    <span>日期：___月___日</span>
+                    <span>得分：____ / 100</span>
+                </div>
+            </div>
+            <div class="instruction">💡 任務：請仔細計算下列數學題目，將正確答案填入底線上。每題 4 分。</div>
+            
+            <div class="worksheet-body">
+                <div class="math-col">
+                    ${col1.map((q, index) => renderRow(q, index + 1)).join('')}
+                </div>
+                <div class="math-col">
+                    ${col2.map((q, index) => renderRow(q, index + 14)).join('')}
+                </div>
+            </div>
+
+            <div class="sheet-footer">
+                <span>${isAns ? '解答卷' : '測驗卷'} - 第 ${pageNum} 頁</span>
+                <span>設計者：鍾孟修 職能治療師</span>
+            </div>
+        `;
+        scaler.appendChild(sheet);
+        return scaler;
+    }
+
+    // 處理視窗縮放，確保 A4 頁面可以在螢幕上完整預覽
+    function updateScale() {
+        const previewArea = document.querySelector('.preview-area');
+        if (!previewArea) return;
+        
+        const containerWidth = previewArea.clientWidth - 40;
+        const scalers = document.querySelectorAll('.sheet-scaler');
+        if (scalers.length === 0) return;
+        
+        // A4 寬度約為 210mm，轉換為 pixel 基準 (1mm ≒ 3.7795px)
+        const sheetWidth = 210 * 3.7795;
+        let scale = containerWidth / sheetWidth;
+        if (scale > 1) scale = 1; // 最大比例不超過 1
+        
+        scalers.forEach(s => {
+            s.style.transform = `scale(${scale})`;
+            s.style.height = (297 * 3.7795 * scale) + "px";
+        });
+    }
+
+    // 將頁面轉換為 PDF 檔案並下載
+    async function downloadPDF() {
+        const { jsPDF } = window.jspdf;
+        const btn = document.getElementById('pdfBtn');
+        const sheets = document.querySelectorAll('.sheet');
+        const hidden = document.getElementById('hidden-capture');
+        
+        if (sheets.length === 0) {
+            showMessage("請先點擊「產生測驗卷」再下載 PDF", "error");
+            return;
+        }
+        
+        btn.disabled = true;
+        btn.innerText = "⏳ 準備轉換 PDF...";
+
+        try {
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            for (let i = 0; i < sheets.length; i++) {
+                btn.innerText = `⏳ 正在轉換第 ${i+1}/${sheets.length} 頁...`;
+                
+                // 複製節點至隱藏區域以避免受到 CSS scale 縮放影響導致解析度不佳
+                const clone = sheets[i].cloneNode(true);
+                clone.style.transform = "none";
+                hidden.appendChild(clone);
+                
+                const canvas = await html2canvas(clone, { scale: 1.5 }); 
+                hidden.removeChild(clone);
+                
+                const imgData = canvas.toDataURL('image/jpeg', 0.85);
+                if (i > 0) pdf.addPage();
+                pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+            }
+            pdf.save('大腦體操_三數連加減測驗卷_25題.pdf');
+            showMessage("✅ PDF 下載完成！", "success");
+        } catch (e) {
+            console.error(e);
+            showMessage("轉換 PDF 時發生錯誤。如果頁數過多，建議分次產生，或直接使用「直接列印」功能轉存 PDF。", "error");
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "📱 下載 PDF";
+        }
+    }
+
+    // 監聽視窗大小改變，即時調整 A4 預覽大小
+    window.addEventListener('resize', updateScale);
+    
+    // 初始化產生一次預設的題目
+    window.onload = generateSheets;
+</script>
+
+</body>
+</html>
