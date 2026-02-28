@@ -182,7 +182,7 @@
     </div>
     <div class="designer-info">
         <b>題庫升級：</b>內建 <b>100 組</b>日常生活中最常見的相反詞（包含長短大小、情緒、動作、抽象概念等）。<br>
-        <b>防重複機制：</b>若一次產生多頁測驗卷，系統會優先將 100 題輪流出完，確保在同一批考卷中「完全不會有重複的題目」！
+        <b>排版與難易度：</b>每頁固定最佳排版 10 題，可依照對象認知程度選擇「單字具體概念」或「雙字抽象概念」來調整挑戰難度。
     </div>
 
     <div id="msgBox"></div>
@@ -193,11 +193,11 @@
             <input type="text" id="titleInput" value="語文大挑戰：相反詞連連看">
         </div>
         <div class="control-group">
-            <label>🔢 每頁題數 (建議 8-12)</label>
-            <select id="itemCount">
-                <option value="8">8 題 (間距寬鬆，適合幼兒)</option>
-                <option value="10" selected>10 題 (適中排版，推薦)</option>
-                <option value="12">12 題 (較具挑戰性)</option>
+            <label>⭐ 題目難易度</label>
+            <select id="diffLevel">
+                <option value="1">初階 (單字、具體基礎概念)</option>
+                <option value="2">進階 (雙字、情緒與抽象概念)</option>
+                <option value="mix" selected>綜合 (全題庫隨機混搭)</option>
             </select>
         </div>
         <div class="control-group">
@@ -225,67 +225,67 @@
 <div id="hidden-capture"></div>
 
 <script>
-    // 內建 100 組日常相反詞彙庫
+    // 內建 100 組日常相反詞彙庫 (加入 diff 難度屬性: 1 為初階具體單字, 2 為進階抽象雙字)
     const antonymDictionary = [
         // 尺寸/空間/方向 (25組)
-        { id: 1, left: "大", right: "小" }, { id: 2, left: "高", right: "低" },
-        { id: 3, left: "長", right: "短" }, { id: 4, left: "粗", right: "細" },
-        { id: 5, left: "寬", right: "窄" }, { id: 6, left: "厚", right: "薄" },
-        { id: 7, left: "深", right: "淺" }, { id: 8, left: "胖", right: "瘦" },
-        { id: 9, left: "輕", right: "重" }, { id: 10, left: "上", right: "下" },
-        { id: 11, left: "左", right: "右" }, { id: 12, left: "前", right: "後" },
-        { id: 13, left: "裡", right: "外" }, { id: 14, left: "遠", right: "近" },
-        { id: 15, left: "東", right: "西" }, { id: 16, left: "南", right: "北" },
-        { id: 17, left: "進", right: "出" }, { id: 18, left: "來", right: "去" },
-        { id: 19, left: "巨大", right: "微小" }, { id: 20, left: "遙遠", right: "附近" },
-        { id: 21, left: "滿", right: "空" }, { id: 22, left: "聚", right: "散" },
-        { id: 23, left: "集中", right: "分散" }, { id: 24, left: "內", right: "外" },
-        { id: 25, left: "頂端", right: "底部" },
+        { id: 1, left: "大", right: "小", diff: 1 }, { id: 2, left: "高", right: "低", diff: 1 },
+        { id: 3, left: "長", right: "短", diff: 1 }, { id: 4, left: "粗", right: "細", diff: 1 },
+        { id: 5, left: "寬", right: "窄", diff: 1 }, { id: 6, left: "厚", right: "薄", diff: 1 },
+        { id: 7, left: "深", right: "淺", diff: 1 }, { id: 8, left: "胖", right: "瘦", diff: 1 },
+        { id: 9, left: "輕", right: "重", diff: 1 }, { id: 10, left: "上", right: "下", diff: 1 },
+        { id: 11, left: "左", right: "右", diff: 1 }, { id: 12, left: "前", right: "後", diff: 1 },
+        { id: 13, left: "裡", right: "外", diff: 1 }, { id: 14, left: "遠", right: "近", diff: 1 },
+        { id: 15, left: "東", right: "西", diff: 1 }, { id: 16, left: "南", right: "北", diff: 1 },
+        { id: 17, left: "進", right: "出", diff: 1 }, { id: 18, left: "來", right: "去", diff: 1 },
+        { id: 19, left: "巨大", right: "微小", diff: 2 }, { id: 20, left: "遙遠", right: "附近", diff: 2 },
+        { id: 21, left: "滿", right: "空", diff: 1 }, { id: 22, left: "聚", right: "散", diff: 2 },
+        { id: 23, left: "集中", right: "分散", diff: 2 }, { id: 24, left: "內", right: "外", diff: 1 },
+        { id: 25, left: "頂端", right: "底部", diff: 2 },
 
         // 時間/速度/狀態 (25組)
-        { id: 26, left: "早", right: "晚" }, { id: 27, left: "日", right: "夜" },
-        { id: 28, left: "新", right: "舊" }, { id: 29, left: "快", right: "慢" },
-        { id: 30, left: "先", right: "後" }, { id: 31, left: "冷", right: "熱" },
-        { id: 32, left: "涼", right: "暖" }, { id: 33, left: "乾", right: "濕" },
-        { id: 34, left: "軟", right: "硬" }, { id: 35, left: "鬆", right: "緊" },
-        { id: 36, left: "明", right: "暗" }, { id: 37, left: "美", right: "醜" },
-        { id: 38, left: "香", right: "臭" }, { id: 39, left: "吵", right: "靜" },
-        { id: 40, left: "濃", right: "淡" }, { id: 41, left: "清", right: "濁" },
-        { id: 42, left: "真", right: "假" }, { id: 43, left: "善", right: "惡" },
-        { id: 44, left: "好", right: "壞" }, { id: 45, left: "對", right: "錯" },
-        { id: 46, left: "是", right: "非" }, { id: 47, left: "強", right: "弱" },
-        { id: 48, left: "剛", right: "柔" }, { id: 49, left: "寒冷", right: "炎熱" },
-        { id: 50, left: "黑暗", right: "光明" },
+        { id: 26, left: "早", right: "晚", diff: 1 }, { id: 27, left: "日", right: "夜", diff: 1 },
+        { id: 28, left: "新", right: "舊", diff: 1 }, { id: 29, left: "快", right: "慢", diff: 1 },
+        { id: 30, left: "先", right: "後", diff: 1 }, { id: 31, left: "冷", right: "熱", diff: 1 },
+        { id: 32, left: "涼", right: "暖", diff: 1 }, { id: 33, left: "乾", right: "濕", diff: 1 },
+        { id: 34, left: "軟", right: "硬", diff: 1 }, { id: 35, left: "鬆", right: "緊", diff: 1 },
+        { id: 36, left: "明", right: "暗", diff: 1 }, { id: 37, left: "美", right: "醜", diff: 1 },
+        { id: 38, left: "香", right: "臭", diff: 1 }, { id: 39, left: "吵", right: "靜", diff: 1 },
+        { id: 40, left: "濃", right: "淡", diff: 1 }, { id: 41, left: "清", right: "濁", diff: 2 },
+        { id: 42, left: "真", right: "假", diff: 1 }, { id: 43, left: "善", right: "惡", diff: 2 },
+        { id: 44, left: "好", right: "壞", diff: 1 }, { id: 45, left: "對", right: "錯", diff: 1 },
+        { id: 46, left: "是", right: "非", diff: 1 }, { id: 47, left: "強", right: "弱", diff: 1 },
+        { id: 48, left: "剛", right: "柔", diff: 2 }, { id: 49, left: "寒冷", right: "炎熱", diff: 2 },
+        { id: 50, left: "黑暗", right: "光明", diff: 2 },
 
         // 情緒/個性/人物 (25組)
-        { id: 51, left: "哭", right: "笑" }, { id: 52, left: "喜", right: "悲" },
-        { id: 53, left: "愛", right: "恨" }, { id: 54, left: "喜歡", right: "討厭" },
-        { id: 55, left: "勇敢", right: "懦弱" }, { id: 56, left: "驕傲", right: "謙虛" },
-        { id: 57, left: "勤勞", right: "懶惰" }, { id: 58, left: "聰明", right: "愚笨" },
-        { id: 59, left: "快樂", right: "悲傷" }, { id: 60, left: "緊張", right: "放鬆" },
-        { id: 61, left: "忙碌", right: "悠閒" }, { id: 62, left: "安全", right: "危險" },
-        { id: 63, left: "成功", right: "失敗" }, { id: 64, left: "乾淨", right: "骯髒" },
-        { id: 65, left: "整齊", right: "凌亂" }, { id: 66, left: "溫柔", right: "粗暴" },
-        { id: 67, left: "誠實", right: "說謊" }, { id: 68, left: "活潑", right: "內向" },
-        { id: 69, left: "仔細", right: "馬虎" }, { id: 70, left: "清醒", right: "沉睡" },
-        { id: 71, left: "熟悉", right: "陌生" }, { id: 72, left: "相信", right: "懷疑" },
-        { id: 73, left: "飽", right: "餓" }, { id: 74, left: "獎勵", right: "懲罰" },
-        { id: 75, left: "讚美", right: "批評" },
+        { id: 51, left: "哭", right: "笑", diff: 1 }, { id: 52, left: "喜", right: "悲", diff: 1 },
+        { id: 53, left: "愛", right: "恨", diff: 1 }, { id: 54, left: "喜歡", right: "討厭", diff: 2 },
+        { id: 55, left: "勇敢", right: "懦弱", diff: 2 }, { id: 56, left: "驕傲", right: "謙虛", diff: 2 },
+        { id: 57, left: "勤勞", right: "懶惰", diff: 2 }, { id: 58, left: "聰明", right: "愚笨", diff: 2 },
+        { id: 59, left: "快樂", right: "悲傷", diff: 2 }, { id: 60, left: "緊張", right: "放鬆", diff: 2 },
+        { id: 61, left: "忙碌", right: "悠閒", diff: 2 }, { id: 62, left: "安全", right: "危險", diff: 2 },
+        { id: 63, left: "成功", right: "失敗", diff: 2 }, { id: 64, left: "乾淨", right: "骯髒", diff: 2 },
+        { id: 65, left: "整齊", right: "凌亂", diff: 2 }, { id: 66, left: "溫柔", right: "粗暴", diff: 2 },
+        { id: 67, left: "誠實", right: "說謊", diff: 2 }, { id: 68, left: "活潑", right: "內向", diff: 2 },
+        { id: 69, left: "仔細", right: "馬虎", diff: 2 }, { id: 70, left: "清醒", right: "沉睡", diff: 2 },
+        { id: 71, left: "熟悉", right: "陌生", diff: 2 }, { id: 72, left: "相信", right: "懷疑", diff: 2 },
+        { id: 73, left: "飽", right: "餓", diff: 1 }, { id: 74, left: "獎勵", right: "懲罰", diff: 2 },
+        { id: 75, left: "讚美", right: "批評", diff: 2 },
 
         // 動作/抽象/數量 (25組)
-        { id: 76, left: "買", right: "賣" }, { id: 77, left: "開", right: "關" },
-        { id: 78, left: "推", right: "拉" }, { id: 79, left: "升", right: "降" },
-        { id: 80, left: "沉", right: "浮" }, { id: 81, left: "增", right: "減" },
-        { id: 82, left: "加", right: "減" }, { id: 83, left: "問", right: "答" },
-        { id: 84, left: "借", right: "還" }, { id: 85, left: "穿", right: "脫" },
-        { id: 86, left: "走", right: "停" }, { id: 87, left: "動", right: "靜" },
-        { id: 88, left: "有", right: "無" }, { id: 89, left: "生", right: "死" },
-        { id: 90, left: "同", right: "異" }, { id: 91, left: "公", right: "私" },
-        { id: 92, left: "貧", right: "富" }, { id: 93, left: "難", right: "易" },
-        { id: 94, left: "繁", right: "簡" }, { id: 95, left: "多", right: "少" },
-        { id: 96, left: "容易", right: "困難" }, { id: 97, left: "複雜", right: "簡單" },
-        { id: 98, left: "結束", right: "開始" }, { id: 99, left: "接受", right: "拒絕" },
-        { id: 100, left: "發現", right: "隱藏" }
+        { id: 76, left: "買", right: "賣", diff: 1 }, { id: 77, left: "開", right: "關", diff: 1 },
+        { id: 78, left: "推", right: "拉", diff: 1 }, { id: 79, left: "升", right: "降", diff: 1 },
+        { id: 80, left: "沉", right: "浮", diff: 1 }, { id: 81, left: "增", right: "減", diff: 1 },
+        { id: 82, left: "加", right: "減", diff: 1 }, { id: 83, left: "問", right: "答", diff: 1 },
+        { id: 84, left: "借", right: "還", diff: 1 }, { id: 85, left: "穿", right: "脫", diff: 1 },
+        { id: 86, left: "走", right: "停", diff: 1 }, { id: 87, left: "動", right: "靜", diff: 1 },
+        { id: 88, left: "有", right: "無", diff: 1 }, { id: 89, left: "生", right: "死", diff: 1 },
+        { id: 90, left: "同", right: "異", diff: 1 }, { id: 91, left: "公", right: "私", diff: 1 },
+        { id: 92, left: "貧", right: "富", diff: 1 }, { id: 93, left: "難", right: "易", diff: 1 },
+        { id: 94, left: "繁", right: "簡", diff: 2 }, { id: 95, left: "多", right: "少", diff: 1 },
+        { id: 96, left: "容易", right: "困難", diff: 2 }, { id: 97, left: "複雜", right: "簡單", diff: 2 },
+        { id: 98, left: "結束", right: "開始", diff: 2 }, { id: 99, left: "接受", right: "拒絕", diff: 2 },
+        { id: 100, left: "發現", right: "隱藏", diff: 2 }
     ];
 
     // 顯示提示訊息
@@ -311,7 +311,8 @@
     // 主要的產生頁面流程
     function generateSheets() {
         const title = document.getElementById('titleInput').value || "語文大挑戰：相反詞連連看";
-        const itemCount = parseInt(document.getElementById('itemCount').value);
+        const diffLevel = document.getElementById('diffLevel').value;
+        const itemCount = 10; // 固定為最佳排版的 10 題
         const pages = Math.max(1, parseInt(document.getElementById('pageCount').value) || 1);
         const showAns = document.getElementById('showAns').value;
         const output = document.getElementById('output');
@@ -322,17 +323,25 @@
             output.innerHTML = '';
             let allPagesData = [];
             
-            // 為了「不重複出題」，先將 100 題洗牌
-            let currentDictionary = shuffleArray(antonymDictionary);
+            // 依照選擇的難易度過濾題庫
+            let filteredDictionary = antonymDictionary;
+            if (diffLevel === '1') {
+                filteredDictionary = antonymDictionary.filter(item => item.diff === 1);
+            } else if (diffLevel === '2') {
+                filteredDictionary = antonymDictionary.filter(item => item.diff === 2);
+            }
+            
+            // 為了「不重複出題」，先將過濾後的題庫洗牌
+            let currentDictionary = shuffleArray(filteredDictionary);
             let dictIndex = 0;
 
             for (let p = 1; p <= pages; p++) {
                 // 1. 依序從洗牌後的題庫中取出需要的數量
                 let selectedPairs = [];
                 for(let i = 0; i < itemCount; i++) {
-                    // 如果 100 題都出完了，就重新洗牌再繼續
+                    // 如果題庫出完了，就重新洗牌再繼續
                     if(dictIndex >= currentDictionary.length) {
-                        currentDictionary = shuffleArray(antonymDictionary);
+                        currentDictionary = shuffleArray(filteredDictionary);
                         dictIndex = 0;
                     }
                     selectedPairs.push(currentDictionary[dictIndex]);
